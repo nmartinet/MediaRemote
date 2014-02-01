@@ -8,6 +8,7 @@ using MediaRemote.Helpers;
 using System.Diagnostics;
 using System.Windows.Forms;
 
+using System.Threading;
 using System.Threading.Tasks;
 
 
@@ -41,6 +42,19 @@ namespace MediaRemote.ViewModel {
     
     private ShortcutSelector _shSelector;
 
+    private string _ToggleButtonValue { get; set;  }
+    public string ToggleButtonValue {
+      get { return _ToggleButtonValue; }
+      set{
+        if(value != _ToggleButtonValue) {
+          _ToggleButtonValue = value;
+          RaisePropertyChanged("ToggleButtonValue");
+        }            
+      } 
+    }
+
+    private bool _running;
+    
     private List<int> _shortcutIDs { get; set; }
 
     private string _shortcutString { get; set; }
@@ -79,6 +93,8 @@ namespace MediaRemote.ViewModel {
     public ViewModelMainWindow() {
       _rmt = new Remote();
 
+      _running = false;
+
       _rmt.textFilter = "Grooveshark";
       _rmt.typeFIlter = "Mozilla";
 
@@ -88,6 +104,7 @@ namespace MediaRemote.ViewModel {
 
       _shortcutString = "None selected";
       _shortcutSelectorButtonString = "Capture Shortcut";
+      _ToggleButtonValue = "Run";
       shortcutSelectorButtonState = true;
 
       RefreshWindowsListCommand = new RelayCommand(RefreshWindowsList);
@@ -127,15 +144,24 @@ namespace MediaRemote.ViewModel {
     }
 
     void ToggleListening(object param) {
-      runRemote();
+      Debug.Print("toggel win");
+      if(!_running) {
+        _running = true;
+        _rmt.selected_window_hWnd = _selectedItem.hWnd;
+        _rmt.shortcut = _shSelector.RegisterHotkeyValue(_shortcutIDs);
+        _rmt.ToggleShortcut();
+        _ToggleButtonValue = "Stop";
+        RaisePropertyChanged("ToggleButtonValue");
+        
+      } else {
+        _running = false;
+        _rmt.ToggleShortcut();
+
+        _ToggleButtonValue = "Run";
+        RaisePropertyChanged("ToggleButtonValue");
+      }
     }
 
-    async void runRemote() {
-      _rmt.selected_window_hWnd = _selectedItem.hWnd;
-      _rmt.shortcut = _shortcutIDs;
-
-      await Task.Run(() => _rmt.Start_Remote());
-    }
     
     void RefreshWindowsList(object param) {
       _rmt.get_windows();

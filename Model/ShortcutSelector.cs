@@ -10,6 +10,8 @@ using System.Windows.Forms;
 namespace MediaRemote.Model {
 
   class ShortcutSelector {
+
+
     private class KeyComparer : IComparer<int> {
       public int Compare(int x, int y) {
         int tmpx = subValue(x);
@@ -27,6 +29,7 @@ namespace MediaRemote.Model {
       
       }
     }
+    #region enums
     enum KeyMods {
       Ctrl = 17,
       LeftCtrl = 162,
@@ -58,15 +61,15 @@ namespace MediaRemote.Model {
       RightClick = 2,
       MidClick = 4
     }
-
-
-
+    #endregion
+    #region user32 dll
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     static extern bool GetKeyboardState(byte[] lpKeyState);
-
+    
     [DllImport("user32.dll")]
     static extern short GetKeyState(int lpKeyState);
+    #endregion
 
     public List<int> GetShortcut() {
       bool running = true;
@@ -92,9 +95,12 @@ namespace MediaRemote.Model {
 
       return res;
     }
+
     public string KeyCodeToName(int keyCode) {
       return ((System.Windows.Forms.Keys)keyCode).ToString();
     }
+
+    #region string output
     public string KeyCodeToCleanName(int keyCode) {
       string res = string.Empty;
       switch(keyCode) {
@@ -116,6 +122,7 @@ namespace MediaRemote.Model {
       }
       return res;
     }
+
     public string ShortcutString(List<int> keyCodes) {
       string res = string.Empty;
       keyCodes.Sort(new KeyComparer());
@@ -123,16 +130,42 @@ namespace MediaRemote.Model {
 
       return res;    
     }
+    #endregion
 
     public int[] RegisterHotkeyValue(List<int> keyCodes) {
       int[] res = new int[2];
 
-      foreach(int k in keyCodes) {
+      List<int> mods = new List<int>();
+      List<int> keys = new List<int>();
 
+      foreach(int k in keyCodes) {
+        switch(k) {
+          case 16:
+           //shift
+            mods.Add(4);
+            break;
+          case 17:
+            //ctrl
+            mods.Add(2);
+            break;
+          case 18:
+            //alt
+            mods.Add(1);
+            break;
+          case 91:
+            //win
+            mods.Add(8);
+            break;
+          default:
+            keys.Add(k);
+            break;
+        }
 
 
       }
 
+      res[0] = mods.Aggregate((x, y) => x | y );
+      res[1] = keys.Aggregate((x, y) => x | y );
       return res;
     }
   }

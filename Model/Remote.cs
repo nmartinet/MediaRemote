@@ -5,16 +5,18 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
-
+using System.Threading;
 
 namespace MediaRemote.Model {
   class Remote {
 
-  #region attributes
+    #region attributes
     private List<User32Window> _desktop_windows;
-    public List<int> shortcut;
+    public int[] shortcut { get; set; }
 
-    private bool _running = false;
+    private CancellationTokenSource _tokenSource;
+    private CancellationToken _token;
+    private bool _running;
 
     //convert list of structs to list of
     //classes to work for populating gui lsits
@@ -83,6 +85,9 @@ namespace MediaRemote.Model {
     public static extern int RegisterHotKey(IntPtr hDesktop, int id, uint modifier, uint key);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int UnregisterHotKey(IntPtr hDesktop, int id);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern int GetMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
@@ -90,7 +95,6 @@ namespace MediaRemote.Model {
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern int PeekMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
-
     #endregion
     #region DLL Methods
     public List<User32Window> get_windows() {
@@ -153,34 +157,50 @@ namespace MediaRemote.Model {
 
     #endregion
     #region public methods
+    
     public Remote() {
+      _running = false;
       update_windows_list(); 
     }
 
-    public void start_remote() { }
-    public void stop_remote() { }
-    public void scan_desktop() { }
-
     #endregion
 
-    public void Start_Remote() {
-      //List<User32ChildWindow> child_windows_list = get_child_windows(selected_window_hWnd);
-      //User32ChildWindow render_widget = child_windows_list.Where(x => x.type.Contains("Chrome_RenderWidgetHostHWND")).ToList().First();
+    public void ToggleShortcut(){
+      if(!_running) {
+        _running = true;
+        _tokenSource = new CancellationTokenSource();
+        _token = _tokenSource.Token;
+       Task.Factory.StartNew(() => ShortcutLoop(_token), _token);
 
-      RegisterHotKey(IntPtr.Zero, 1, 0x0008 | 0x0004, 0x5A);
+      } else {
+        _tokenSource.Cancel();
+        _running = false;
 
-      bool running = true;
-
-      while (running) {
-        MSG msg;
-        int retVal = GetMessage(out msg, IntPtr.Zero, 0, 0);
-        if (retVal != 0) {
-          System.Threading.Thread.Sleep(1000);
-
-          PostMessage(selected_window_hWnd, 256, 0x20, 1);
-          PostMessage(selected_window_hWnd, 257, 0x20, 1);
-        }
+        
       }
     }
+
+    private void ShortcutLoop(CancellationToken ct) { 
+       RegisterHotKey(IntPtr.Zero, 1, (uint)shortcut[0], (uint)shortcut[1]);
+       bool running = true;
+       while(running) {
+         MSG msg;
+         int retVal = PeekMessage(out msg, IntPtr.Zero, 0, 0, 1);
+         if(retVal != 0) {
+           System.Threading.Thread.Sleep(500);
+
+           PostMessage(selected_window_hWnd, 256, 0x20, 1);
+           PostMessage(selected_window_hWnd, 257, 0x20, 1);
+         }
+         if(ct.IsCancellationRequested) {
+           UnregisterHotKey(IntPtr.Zero, 1);
+           running = false;
+         }
+       }
+    }
+
+
+
+
   }
 }

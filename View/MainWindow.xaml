@@ -61,7 +61,7 @@
                        VerticalAlignment="Center" />
             </Grid>
                
-            <Button Content="Toggle listening" 
+            <Button Content="{Binding ToggleButtonValue}" 
                     Command="{Binding ToggleListeningCommand}"
                     Grid.Row="3" 
                     Grid.Column="1" 
